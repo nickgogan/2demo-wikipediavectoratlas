@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=42.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wikipedia-vector"
+version = "0.1.0"
+description = "Wikipedia Vector Search with MongoDB"
+readme = "README.md"
+authors = [
+    {name = "Nick Gogan", email = "gogannick@gmail.com"}
+]
+license = {text = "MIT"}
+requires-python = ">=3.8,<4.0"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing",
+    "Topic :: Utilities"
+]
+dependencies = [
+    "sentence-transformers>=2.2.2,<3.0.0",
+    "pymongo>=4.5.0,<5.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "datasets>=2.14.0,<3.0.0",
+    "pympler>=1.0.1,<2.0.0",
+    "hurry.filesize>=0.9,<0.10",
+    "torch>=2.0.0,<3.0.0",  # Required by sentence-transformers
+    "tqdm>=4.65.0,<5.0.0",  # Required by sentence-transformers
+    "numpy>=1.20.0,<2.0.0"  # Required by sentence-transformers
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "flake8-bugbear>=23.0.0",
+    "pre-commit>=3.0.0",
+    "mypy>=1.0.0",
+    "types-python-dotenv>=1.0.0;python_version>='3.8'",
+    "types-PyYAML>=6.0.0"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/nickgogan/wikipedia-vector"
+"Bug Tracker" = "https://github.com/nickgogan/wikipedia-vector/issues"
+"Documentation" = "https://github.com/nickgogan/wikipedia-vector#readme"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = "E203, W503"
+max-complexity = 18
+select = "B,C,E,F,W,T4,B9"
+extend-select = "B9"
+per-file-ignores = "__init__.py: F401"
