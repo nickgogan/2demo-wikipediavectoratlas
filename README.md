@@ -22,7 +22,7 @@ This project processes Wikipedia data, generates vector embeddings using sentenc
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/nickgogan/2demo-wikipediavectoratlas/tree/master
    cd wikipedia-vector
    ```
 
