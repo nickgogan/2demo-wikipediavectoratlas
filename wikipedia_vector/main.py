@@ -4,7 +4,8 @@ This module processes Wikipedia dataset, generates vector embeddings using sente
 and stores the results in MongoDB for efficient similarity search.
 """
 import logging
-from typing import Iterator, Dict, Any, List, Optional, Union, Tuple
+import os
+from typing import List, Dict, Any, Optional
 from pymongo.collection import Collection
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -14,7 +15,7 @@ from sentence_transformers import SentenceTransformer
 from hurry.filesize import size
 from pympler import asizeof
 
-from wikipedia_vector.config import AppConfig, IndexBy
+from .config import AppConfig, IndexBy
 
 # Configure logging
 logging.basicConfig(
@@ -26,12 +27,7 @@ logger = logging.getLogger(__name__)
 def create_mongo_client(uri: str) -> MongoClient:
     """Create and return a MongoDB client with error handling."""
     try:
-        client = MongoClient(
-            uri,
-            server_api=ServerApi('1'),
-            connectTimeoutMS=5000,
-            socketTimeoutMS=30000
-        )
+        client = MongoClient(uri, serverSelectionTimeoutMS=5000, server_api=ServerApi('1'))
         # Test the connection
         client.admin.command('ping')
         logger.info("Successfully connected to MongoDB")
@@ -229,8 +225,8 @@ def main() -> None:
             trust_remote_code=True
         )
         
-        # Apply max_records limit if specified
-        if config.dataset.max_records is not None:
+        # Only apply max_records limit if INDEX_BY is RECORDS
+        if config.index_by == IndexBy.RECORDS and config.dataset.max_records is not None:
             logger.info(f"Limiting to {config.dataset.max_records} records")
             dataset = dataset.take(config.dataset.max_records)
         

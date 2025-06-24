@@ -3,9 +3,18 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Literal
 from dotenv import load_dotenv
+import logging
 
-# Load environment variables from .env file
-load_dotenv(dotenv_path='.env' if os.path.isdir('.env') else None)
+# Set up logging
+logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file in the project root
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path=dotenv_path)
+    logger.info(f"Loaded environment variables from {dotenv_path}")
+else:
+    logger.warning(f"No .env file found at {dotenv_path}, using system environment variables")
 
 class IndexBy(str, Enum):
     ALL = 'ALL'
@@ -40,7 +49,7 @@ class DatasetConfig:
     name: str
     language: str
     date: str
-    max_bytes: Optional[int]
+    max_bytes: Optional[float]
     max_records: Optional[int]
 
     @classmethod
@@ -54,6 +63,15 @@ class DatasetConfig:
         max_bytes = clean_env_value(os.getenv('DATA_MAX_BYTES'))
         max_records = clean_env_value(os.getenv('DATA_MAX_RECORDS'))
         
+        index_by = IndexBy(os.getenv('INDEX_BY', 'ALL').upper())
+        
+        if index_by == IndexBy.BYTES:
+            logger.info(f"Loading config - BYTES mode with max_bytes: {max_bytes}")
+        elif index_by == IndexBy.RECORDS:
+            logger.info(f"Loading config - RECORDS mode with max_records: {max_records}")
+        else:
+            logger.info("Loading config - ALL mode (no limits)")
+            
         return cls(
             path=os.getenv('DATASET_PATH', 'wikipedia'),
             name=os.getenv('DATASET_NAME', '20220301.en'),
@@ -86,6 +104,7 @@ class AppConfig:
         index_by_str = os.getenv('INDEX_BY', 'ALL').upper()
         try:
             index_by = IndexBy(index_by_str)
+            logger.info(f"Using INDEX_BY: {index_by}")
         except ValueError as e:
             valid_values = [e.value for e in IndexBy]
             raise ValueError(
