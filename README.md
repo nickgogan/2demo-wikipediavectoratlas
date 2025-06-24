@@ -22,23 +22,55 @@ This project processes Wikipedia data, generates vector embeddings using sentenc
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/nickgogan/2demo-wikipediavectoratlas/tree/master
-   cd wikipedia-vector
+   git clone https://github.com/nickgogan/2demo-wikipediavectoratlas
+   cd 2demo-wikipediavectoratlas
    ```
 
-2. Install dependencies using `uv` (recommended):
+2. Set up a virtual environment (choose one method):
+
+   **Using Python's built-in venv:**
+   ```bash
+   # Create virtual environment
+   python -m venv venv
+   
+   # Activate it (Linux/macOS)
+   source venv/bin/activate
+   
+   # Or on Windows:
+   # .\venv\Scripts\activate
+   ```
+
+   **Or using `uv` (faster alternative):**
+   ```bash
+   # Install uv if you haven't already
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Create and activate virtual environment
+   uv venv
+   source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+   ```
+
+3. Install dependencies:
+   
+   With `uv` (recommended):
    ```bash
    uv pip install -e ".[dev]"
    ```
-
-   Or using `pip`:
+   
+   Or with `pip`:
    ```bash
    pip install -e ".[dev]"
    ```
 
-3. Install pre-commit hooks:
+4. Install pre-commit hooks:
    ```bash
    pre-commit install
+   ```
+
+5. Copy the example environment file and update it with your configuration:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values
    ```
 
 ## Configuration
@@ -101,6 +133,18 @@ The script will:
 4. **Progress Tracking**: Progress is logged with document counts and data volumes
 
 ## Development
+
+### Activating the Virtual Environment
+
+When you return to the project, activate the virtual environment:
+
+```bash
+# If using Python's venv
+source venv/bin/activate  # or .\venv\Scripts\activate on Windows
+
+# If using uv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+```
 
 ### Code Quality
 
