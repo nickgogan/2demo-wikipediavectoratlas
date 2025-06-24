@@ -9,11 +9,13 @@ This project processes Wikipedia data, generates vector embeddings using sentenc
 - Store and index data in MongoDB with vector search capabilities
 - Configurable processing options (by records, size, or entire dataset)
 - Modern configuration management using environment variables or `pyproject.toml`
+- Support for both raw and pre-embedded document storage
+- Toggle for embedding generation to optimize processing
 
 ## Prerequisites
 
 - Python 3.8+
-- MongoDB Atlas or local MongoDB instance
+- MongoDB Atlas or local MongoDB instance (version 6.0+ for vector search)
 - `uv` package manager (recommended) or `pip`
 
 ## Installation
@@ -39,7 +41,68 @@ This project processes Wikipedia data, generates vector embeddings using sentenc
    pre-commit install
    ```
 
-## Development Setup
+## Configuration
+
+### Environment Variables
+
+Copy the example environment file and update the values:
+
+```bash
+cp .env.example .env
+# Edit .env with your values
+```
+
+#### MongoDB Configuration
+- `MONGO_URI`: MongoDB connection string (default: `mongodb://localhost:27017/`)
+- `MONGO_DBNAME`: Database name (default: `DeveloperDay`)
+- `MONGO_COLLNAME_RAW`: Collection for raw documents (default: `wikipedia`)
+- `MONGO_COLLNAME_PREEMBEDDED`: Collection for documents with embeddings (default: `wikipedia_preembedded`)
+- `RESET_COLLECTION`: Whether to drop existing collections on startup (default: `true`)
+- `BATCH_SIZE`: Number of documents to process in each batch (default: `1000`)
+- `VECTOR_FIELD_NAME`: Field name for storing embeddings (default: `embedding`)
+- `GENERATE_EMBEDDINGS`: Whether to generate and store embeddings (default: `true`)
+
+#### Dataset Configuration
+- `DATASET_PATH`: Dataset path (default: `wikipedia`)
+- `DATASET_NAME`: Dataset name/version (default: `20220301.en`)
+- `DATASET_LANGUAGE`: Dataset language (default: `english`)
+- `DATASET_DATE`: Dataset date (default: `20220301`)
+- `DATA_MAX_BYTES`: Maximum data size to process in bytes (default: `11000000` ~11MB)
+- `DATA_MAX_RECORDS`: Maximum number of records to process (default: `200`)
+- `INDEX_BY`: Processing strategy: `ALL`, `BYTES`, or `RECORDS` (default: `ALL`)
+
+#### Model Configuration
+- `EMBEDDING_MODEL`: Sentence transformer model name (default: `sentence-transformers/all-mpnet-base-v2`)
+
+## Usage
+
+1. Configure your environment variables in `.env` or set them in your environment
+2. Run the main script:
+   ```bash
+   python -m wikipedia_vector.main
+   ```
+
+The script will:
+1. Connect to your MongoDB instance
+2. Download and process the Wikipedia dataset
+3. Store raw documents in the raw collection
+4. If `GENERATE_EMBEDDINGS` is `true`:
+   - Load the embedding model
+   - Generate embeddings for each document
+   - Store documents with embeddings in the pre-embedded collection
+
+## Data Flow
+
+1. **Data Loading**: The dataset is loaded in streaming mode to minimize memory usage
+2. **Batch Processing**: Documents are processed in configurable batch sizes
+3. **Dual Storage**:
+   - Raw documents are stored in the raw collection
+   - Documents with embeddings are stored in the pre-embedded collection (if enabled)
+4. **Progress Tracking**: Progress is logged with document counts and data volumes
+
+## Development
+
+### Code Quality
 
 This project uses several tools to maintain code quality:
 
@@ -49,84 +112,18 @@ This project uses several tools to maintain code quality:
 - **mypy** - Static type checking
 - **pre-commit** - Git hooks for code quality
 
-### Pre-commit Hooks
-
-Pre-commit hooks are automatically installed when you run `pre-commit install` after installing the development dependencies. These hooks will run automatically before each commit to ensure code quality.
-
-To run all checks manually:
+Run all checks:
 ```bash
 pre-commit run --all-files
 ```
 
-## Configuration
+### Adding New Features
 
-### Option 1: Using `pyproject.toml` (Recommended)
-
-Edit the `[tool.uv.env]` section in `pyproject.toml` with your configuration:
-
-```toml
-[tool.uv.env]
-# MongoDB Configuration
-MONGO_URI = "mongodb+srv://<username>:<password>@<clustername>.<projecthash>.mongodb.net/?retryWrites=true"
-MONGO_DBNAME = "DevDay"
-MONGO_COLLNAME = "wikipedia"
-RESET_COLLECTION = "true"
-BATCH_SIZE = "1000"
-
-# Dataset Configuration
-DATASET_PATH = "wikipedia"
-DATASET_NAME = "20220301.en"
-DATASET_LANGUAGE = "english"
-DATASET_DATE = "20220301"
-
-# Processing Configuration
-INDEX_BY = "ALL"  # Options: ALL, BYTES, RECORDS
-DATA_MAX_BYTES = "11000000"  # 11MB (used when INDEX_BY=BYTES)
-DATA_MAX_RECORDS = "200"     # Used when INDEX_BY=RECORDS
-
-# Model Configuration
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-```
-
-### Option 2: Using Environment Variables
-
-Copy the example environment file and update the values:
-
-```bash
-cp .env.example .env
-# Edit .env with your values
-```
-
-### Option 3: System Environment Variables
-
-Set the variables directly in your shell or deployment environment.
-
-## Usage
-
-1. Run the main script:
-   ```bash
-   python main.py
-   ```
-
-2. The script will:
-   - Connect to your MongoDB instance
-   - Download and process the Wikipedia dataset
-   - Generate vector embeddings for each document
-   - Store the documents in MongoDB
-
-## Indexing Strategies
-
-- `ALL`: Process the entire dataset
-- `BYTES`: Process until reaching the specified data volume
-- `RECORDS`: Process a specific number of records
-
-## Project Structure
-
-- `main.py`: Main application entry point
-- `config.py`: Configuration management using Python dataclasses
-- `.env.example`: Example environment variables
-- `pyproject.toml`: Project metadata and configuration
-- `.pre-commit-config.yaml`: Pre-commit hooks configuration\
+1. Create a new branch for your feature
+2. Make your changes
+3. Add tests if applicable
+4. Update documentation
+5. Submit a pull request
 
 ## License
 
