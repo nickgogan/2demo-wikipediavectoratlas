@@ -60,19 +60,7 @@ def process_batch(
     vector_field: str,
     fields: List[str]
 ) -> tuple[int, int]:
-    """Process a batch of documents and insert them into MongoDB collections.
-    
-    Args:
-        batch: List of documents to process
-        raw_collection: MongoDB collection for raw documents
-        embedded_collection: MongoDB collection for documents with embeddings
-        encoder: SentenceTransformer instance for generating embeddings
-        vector_field: Field name to store the embedding vector
-        fields: List of fields to keep in the documents
-    
-    Returns:
-        Tuple[int, int]: Number of documents inserted into raw and embedded collections
-    """
+    """Process a batch of documents and insert them into MongoDB collections."""
     if not batch:
         return 0, 0
     
@@ -80,60 +68,55 @@ def process_batch(
     embedded_docs = []
     
     try:
+        # Process documents with minimal memory retention
         for doc in batch:
             try:
                 # Create document with only specified fields
                 processed = {k: v for k, v in doc.items() if k in fields}
-                
-                # Always add to raw collection
                 raw_docs.append(processed)
                 
-                # Add to embedded collection if encoder is available and document has text
+                # Generate embedding if needed
                 if embedded_collection is not None and encoder is not None and 'text' in processed:
                     try:
-                        # Create a copy to avoid modifying the original
-                        embedded_doc = processed.copy()
-                        # Generate and add embedding
-                        embedding = encoder.encode(embedded_doc['text']).tolist()
+                        # Create embedding without keeping extra references
+                        embedding = encoder.encode(processed['text']).tolist()
+                        embedded_doc = {k: v for k, v in processed.items()}
                         embedded_doc[vector_field] = embedding
                         embedded_docs.append(embedded_doc)
                         # Clear references
-                        del embedded_doc
+                        del embedded_doc, embedding
                     except Exception as e:
                         logger.error(f"Error generating embedding: {e}")
                 
-                # Clear the processed doc reference
+                # Clear references
                 del processed
                 
             except Exception as e:
-                logger.error(f"Error processing document in batch: {e}")
-        
-        # Insert into collections
-        raw_count = 0
-        embedded_count = 0
+                logger.error(f"Error processing document: {e}")
         
         # Insert raw documents
         if raw_docs:
             try:
                 result = raw_collection.insert_many(raw_docs, ordered=False)
                 raw_count = len(result.inserted_ids)
+                del result  # Clear the result to free memory
             except Exception as e:
                 logger.error(f"Error inserting raw documents: {e}")
                 raise
         
-        # Insert embedded documents if any
+        # Insert embedded documents
         if embedded_docs and embedded_collection is not None:
             try:
                 result = embedded_collection.insert_many(embedded_docs, ordered=False)
                 embedded_count = len(result.inserted_ids)
+                del result  # Clear the result to free memory
             except Exception as e:
                 logger.error(f"Error inserting embedded documents: {e}")
-                # Don't raise here to ensure we still return the raw count
         
         return raw_count, embedded_count
         
     finally:
-        # Explicitly clear lists to free memory
+        # Explicitly clear all references
         raw_docs.clear()
         embedded_docs.clear()
 
@@ -167,9 +150,6 @@ def process_dataset(
             (config.index_by == IndexBy.BYTES and 
              batch_size >= (config.dataset.max_bytes or float('inf')))):
             
-            # Calculate actual size of this batch
-            batch_bytes = sum(asizeof.asizeof(doc) for doc in batch)
-            
             # Process batch
             raw_count, embedded_count = process_batch(
                 batch,
@@ -180,8 +160,8 @@ def process_dataset(
                 ['id', 'text', 'title', 'url']
             )
             
-            # Update statistics with actual batch size
-            stats.add_batch(raw_count, embedded_count, batch_bytes)
+            # Update statistics
+            stats.add_batch(raw_count, embedded_count, batch_size)
             
             # Log progress
             logger.info(
@@ -209,7 +189,6 @@ def process_dataset(
     
     # Process any remaining documents in the last batch
     if batch:
-        batch_bytes = sum(asizeof.asizeof(doc) for doc in batch)
         raw_count, embedded_count = process_batch(
             batch,
             raw_collection,
@@ -218,7 +197,7 @@ def process_dataset(
             config.mongo.vector_field,
             ['id', 'text', 'title', 'url']
         )
-        stats.add_batch(raw_count, embedded_count, batch_bytes)
+        stats.add_batch(raw_count, embedded_count, batch_size)
         
     logger.info(
         f"Processing complete. Processed {stats.batches} batches with "
