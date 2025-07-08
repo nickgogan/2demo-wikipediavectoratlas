@@ -161,7 +161,7 @@ def process_dataset(
                 embedded_collection,
                 encoder,
                 config.mongo.vector_field,
-                ['id', 'text', 'title', 'url']
+                ['chunk_id', 'text']
             )
             
             # Update statistics
@@ -201,7 +201,7 @@ def process_dataset(
             embedded_collection,
             encoder,
             config.mongo.vector_field,
-            ['id', 'text', 'title', 'url']
+            ['chunk_id', 'text']
         )
         stats.add_batch(raw_count, embedded_count, batch_size)
         batch.clear()

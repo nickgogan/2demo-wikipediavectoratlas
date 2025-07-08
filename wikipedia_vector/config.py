@@ -47,8 +47,6 @@ class MongoConfig:
 class DatasetConfig:
     path: str
     name: str
-    language: str
-    date: str
     max_bytes: Optional[float]
     max_records: Optional[int]
 
@@ -75,8 +73,6 @@ class DatasetConfig:
         return cls(
             path=os.getenv('DATASET_PATH', 'wikipedia'),
             name=os.getenv('DATASET_NAME', '20220301.en'),
-            language=os.getenv('DATASET_LANGUAGE', 'english'),
-            date=os.getenv('DATASET_DATE', '20220301'),
             max_bytes=float(max_bytes) if max_bytes else None,
             max_records=int(max_records) if max_records else None
         )
