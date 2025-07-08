@@ -15,6 +15,7 @@ from sentence_transformers import SentenceTransformer
 from hurry.filesize import size
 from pympler import asizeof
 from dataclasses import dataclass, field
+import gc
 
 from .config import AppConfig, IndexBy
 
@@ -24,6 +25,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# TODOs
+# 1. Address potential memory leak issues
 
 @dataclass
 class ProcessingStats:
@@ -170,8 +174,10 @@ def process_dataset(
                 f"{stats.embedded} embedded, {size(stats.bytes_processed)} processed)"
             )
             
-            batch = []
+            # Clear batch and trigger garbage collection to free memory
+            batch.clear()
             batch_size = 0
+            gc.collect()
             
             # Check if we've reached max records
             if (config.index_by == IndexBy.RECORDS and 
@@ -198,6 +204,8 @@ def process_dataset(
             ['id', 'text', 'title', 'url']
         )
         stats.add_batch(raw_count, embedded_count, batch_size)
+        batch.clear()
+        gc.collect()
         
     logger.info(
         f"Processing complete. Processed {stats.batches} batches with "
