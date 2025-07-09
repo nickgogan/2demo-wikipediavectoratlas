@@ -1,127 +1,94 @@
 # Wikipedia Vector Search
 
-This project processes Wikipedia data, generates vector embeddings using sentence transformers, and stores them in MongoDB for efficient search and retrieval.
+This project is a data processing pipeline that fetches data from a Hugging Face dataset, generates vector embeddings for the text content, and stores the results in a MongoDB Atlas collection. It is designed to be configurable and scalable for handling large datasets.
 
 ## Features
 
-- Download and process Wikipedia datasets
-- Generate vector embeddings using state-of-the-art models
-- Store and index data in MongoDB with vector search capabilities
-- Configurable processing options (by records, size, or entire dataset)
-- Modern configuration management using environment variables or `pyproject.toml`
-- Support for both raw and pre-embedded document storage
-- Toggle for embedding generation to optimize processing
+- **Data Ingestion**: Loads datasets directly from Hugging Face, supporting streaming for large datasets.
+- **Vector Embeddings**: Uses `sentence-transformers` to generate high-quality vector embeddings for text data.
+- **MongoDB Integration**: Stores both the raw text and the vector embeddings in MongoDB Atlas, ready for vector search.
+- **Configurable**: All key parameters, such as database connections, dataset names, and model names, are managed through a `.env` file.
+- **Memory Efficient**: Designed with memory management in mind, including batch processing and explicit garbage collection to handle large-scale data processing.
 
-## Prerequisites
+## Getting Started
+
+Follow these instructions to set up and run the project on your local machine.
+
+### Prerequisites
 
 - Python 3.8+
-- MongoDB Atlas or local MongoDB instance (version 6.0+ for vector search)
-- `uv` package manager (recommended) or `pip`
+- A MongoDB Atlas account (a free cluster is sufficient).
 
-## Installation
+### 1. Clone the Repository
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/nickgogan/2demo-wikipediavectoratlas
-   cd 2demo-wikipediavectoratlas
-   ```
+```bash
+git clone https://github.com/nickgogan/2demo-wikipediavectoratlas.git
+cd 2demo-wikipediavectoratlas
+```
 
-2. Set up a virtual environment (choose one method):
+### 2. Set Up a Virtual Environment
 
-   **Using Python's built-in venv:**
-   ```bash
-   # Create virtual environment
-   python -m venv venv
-   
-   # Activate it (Linux/macOS)
-   source venv/bin/activate
-   
-   # Or on Windows:
-   # .\venv\Scripts\activate
-   ```
+It is recommended to use a virtual environment to manage project dependencies.
 
-   **Or using `uv` (faster alternative):**
-   ```bash
-   # Install uv if you haven't already
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   
-   # Create and activate virtual environment
-   uv venv
-   source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
-3. Install dependencies:
-   
-   With `uv` (recommended):
-   ```bash
-   uv pip install -e ".[dev]"
-   ```
-   
-   Or with `pip`:
-   ```bash
-   pip install -e ".[dev]"
-   ```
+### 3. Install Dependencies
 
-4. Install pre-commit hooks:
-   ```bash
-   pre-commit install
-   ```
+Install the required Python packages using `pip`:
 
-5. Copy the example environment file and update it with your configuration:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your values
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-## Configuration
+### 4. Configure Environment Variables
 
-### Environment Variables
-
-Copy the example environment file and update the values:
+The application uses a `.env` file to manage configuration settings. To get started, copy the example file:
 
 ```bash
 cp .env.example .env
-# Edit .env with your values
 ```
 
-#### MongoDB Configuration
-- `MONGO_URI`: MongoDB connection string (default: `mongodb://localhost:27017/`)
-- `MONGO_DBNAME`: Database name (default: `DeveloperDay`)
-- `MONGO_COLLNAME_RAW`: Collection for raw documents (default: `wikipedia`)
-- `MONGO_COLLNAME_PREEMBEDDED`: Collection for documents with embeddings (default: `wikipedia_preembedded`)
-- `RESET_COLLECTION`: Whether to drop existing collections on startup (default: `true`)
-- `BATCH_SIZE`: Number of documents to process in each batch (default: `1000`)
-- `VECTOR_FIELD_NAME`: Field name for storing embeddings (default: `embedding`)
-- `GENERATE_EMBEDDINGS`: Whether to generate and store embeddings (default: `true`)
+Next, open the `.env` file and update the `MONGO_URI` with your MongoDB Atlas connection string. You can get this from the Atlas UI.
 
-#### Dataset Configuration
-- `DATASET_PATH`: Dataset path (default: `wikipedia`)
-- `DATASET_NAME`: Dataset name/version (default: `20220301.en`)
-- `DATASET_LANGUAGE`: Dataset language (default: `english`)
-- `DATASET_DATE`: Dataset date (default: `20220301`)
-- `DATA_MAX_BYTES`: Maximum data size to process in bytes (default: `11000000` ~11MB)
-- `DATA_MAX_RECORDS`: Maximum number of records to process (default: `200`)
-- `INDEX_BY`: Processing strategy: `ALL`, `BYTES`, or `RECORDS` (default: `ALL`)
-
-#### Model Configuration
-- `EMBEDDING_MODEL`: Sentence transformer model name (default: `sentence-transformers/all-mpnet-base-v2`)
+```dotenv
+# .env
+MONGO_URI=mongodb+srv://<username>:<password>@<clustername>.<projecthash>.mongodb.net/?retryWrites=true
+# ... other settings
+```
 
 ## Usage
 
-1. Configure your environment variables in `.env` or set them in your environment
-2. Run the main script:
-   ```bash
-   python -m wikipedia_vector.main
-   ```
+Once the setup and configuration are complete, you can run the data processing pipeline with the following command from the project's root directory:
 
-The script will:
-1. Connect to your MongoDB instance
-2. Download and process the Wikipedia dataset
-3. Store raw documents in the raw collection
-4. If `GENERATE_EMBEDDINGS` is `true`:
-   - Load the embedding model
-   - Generate embeddings for each document
-   - Store documents with embeddings in the pre-embedded collection
+```bash
+python -m wikipedia_vector.main
+```
+
+The script will begin fetching the dataset, generating embeddings, and ingesting the data into your specified MongoDB collection.
+
+## Configuration Reference
+
+The behavior of the script can be customized through the following environment variables in the `.env` file:
+
+| Variable | Description |
+|---|---|
+| `MONGO_URI` | **Required.** Your MongoDB Atlas connection string. |
+| `MONGO_DBNAME` | The name of the database to use. Defaults to `DeveloperDay`. |
+| `MONGO_COLLNAME_RAW` | The name of the collection for raw documents. Defaults to `wikipedia`. |
+| `MONGO_COLLNAME_PREEMBEDDED` | The name of the collection for documents with embeddings. Defaults to `wikipedia_preembedded`. |
+| `RESET_COLLECTION` | If `true`, drops the collections before starting. Defaults to `true`. |
+| `BATCH_SIZE` | The number of documents to process in each batch. Defaults to `1000`. |
+| `GENERATE_EMBEDDINGS` | If `true`, generates and stores embeddings. Defaults to `true`. |
+| `VECTOR_FIELD_NAME` | The name of the field for storing embedding vectors. Defaults to `embedding`. |
+| `DATASET_PATH` | The path to the dataset on Hugging Face. Defaults to `AIatMongoDB/cosmopedia-wikihow-chunked`. |
+| `DATASET_NAME` | The specific configuration of the dataset (if any). Defaults to empty. |
+| `INDEX_BY` | The strategy for limiting data processing (`ALL`, `BYTES`, or `RECORDS`). Defaults to `ALL`. |
+| `DATA_MAX_BYTES` | The maximum number of bytes to process (used if `INDEX_BY=BYTES`). |
+| `DATA_MAX_RECORDS` | The maximum number of records to process (used if `INDEX_BY=RECORDS`). |
+| `EMBEDDING_MODEL` | The name of the `sentence-transformers` model to use. Defaults to `sentence-transformers/all-mpnet-base-v2`. |
 
 ## Data Flow
 

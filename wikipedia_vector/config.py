@@ -72,7 +72,7 @@ class DatasetConfig:
             
         return cls(
             path=os.getenv('DATASET_PATH', 'wikipedia'),
-            name=os.getenv('DATASET_NAME', '20220301.en'),
+            name=os.getenv('DATASET_NAME', ''),
             max_bytes=float(max_bytes) if max_bytes else None,
             max_records=int(max_records) if max_records else None
         )

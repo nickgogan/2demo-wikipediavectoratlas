@@ -5,6 +5,7 @@ python-dotenv>=1.0.0
 datasets>=2.14.0
 pympler>=1.0.1
 hurry.filesize>=0.9
+tqdm>=4.66.4
 
 # Development Dependencies
 black>=23.0.0

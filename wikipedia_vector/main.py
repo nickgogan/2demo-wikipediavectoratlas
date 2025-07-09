@@ -16,15 +16,28 @@ from hurry.filesize import size
 from pympler import asizeof
 from dataclasses import dataclass, field
 import gc
+from tqdm import tqdm
 
 from .config import AppConfig, IndexBy
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging to be tqdm-friendly
+class TqdmLoggingHandler(logging.Handler):
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(TqdmLoggingHandler())
 
 # TODOs
 # 1. Address potential memory leak issues
@@ -70,35 +83,39 @@ def process_batch(
     
     raw_docs = []
     embedded_docs = []
+    texts_to_embed = []
+    docs_for_embedding = []
     
     try:
-        # Process documents with minimal memory retention
+        # First, prepare all documents for processing
         for doc in batch:
             try:
                 # Create document with only specified fields
                 processed = {k: v for k, v in doc.items() if k in fields}
                 raw_docs.append(processed)
                 
-                # Generate embedding if needed
+                # Prepare for embedding if needed
                 if embedded_collection is not None and encoder is not None and 'text' in processed:
-                    try:
-                        # Create embedding without keeping extra references
-                        embedding = encoder.encode(processed['text']).tolist()
-                        embedded_doc = {k: v for k, v in processed.items()}
-                        embedded_doc[vector_field] = embedding
-                        embedded_docs.append(embedded_doc)
-                        # Clear references
-                        del embedded_doc, embedding
-                    except Exception as e:
-                        logger.error(f"Error generating embedding: {e}")
-                
-                # Clear references
-                del processed
-                
+                    texts_to_embed.append(processed['text'])
+                    docs_for_embedding.append(processed)
+
             except Exception as e:
                 logger.error(f"Error processing document: {e}")
         
+        # Generate embeddings for the entire batch at once
+        if texts_to_embed and encoder:
+            try:
+                embeddings = encoder.encode(texts_to_embed, show_progress_bar=False).tolist()
+                
+                for i, doc in enumerate(docs_for_embedding):
+                    embedded_doc = doc.copy()
+                    embedded_doc[vector_field] = embeddings[i]
+                    embedded_docs.append(embedded_doc)
+            except Exception as e:
+                logger.error(f"Error generating embeddings for batch: {e}")
+
         # Insert raw documents
+        raw_count = 0
         if raw_docs:
             try:
                 result = raw_collection.insert_many(raw_docs, ordered=False)
@@ -109,6 +126,7 @@ def process_batch(
                 raise
         
         # Insert embedded documents
+        embedded_count = 0
         if embedded_docs and embedded_collection is not None:
             try:
                 result = embedded_collection.insert_many(embedded_docs, ordered=False)
@@ -123,6 +141,8 @@ def process_batch(
         # Explicitly clear all references
         raw_docs.clear()
         embedded_docs.clear()
+        texts_to_embed.clear()
+        docs_for_embedding.clear()
 
 def process_dataset(
     dataset: IterableDataset,
@@ -142,7 +162,15 @@ def process_dataset(
     batch_size = 0
     stats = ProcessingStats()
     
-    for doc in dataset:
+    # Determine the total number of documents for the progress bar
+    total_docs = None
+    if config.index_by == IndexBy.RECORDS and config.dataset.max_records:
+        total_docs = config.dataset.max_records
+
+    # Wrap the dataset with tqdm for a progress bar
+    progress_bar = tqdm(dataset, desc="Processing dataset", unit="docs", total=total_docs)
+    
+    for doc in progress_bar:
         doc_size = asizeof.asizeof(doc)
         
         # Add to batch
@@ -167,11 +195,12 @@ def process_dataset(
             # Update statistics
             stats.add_batch(raw_count, embedded_count, batch_size)
             
-            # Log progress
-            logger.info(
-                f"Processed batch {stats.batches}: "
-                f"{raw_count} docs (total: {stats.docs} docs, "
-                f"{stats.embedded} embedded, {size(stats.bytes_processed)} processed)"
+            # Update the progress bar with the latest stats
+            progress_bar.set_postfix(
+                batches=stats.batches, 
+                docs=f"{stats.docs}",
+                embedded=f"{stats.embedded}",
+                size=size(stats.bytes_processed)
             )
             
             # Clear batch and trigger garbage collection to free memory
@@ -245,7 +274,10 @@ def main() -> None:
             logger.info("Embedding generation is disabled")
         
         # Load dataset
-        logger.info(f"Loading dataset: {config.dataset.path}/{config.dataset.name}")
+        dataset_str = config.dataset.path
+        if config.dataset.name:
+            dataset_str += f"/{config.dataset.name}"
+        logger.info(f"Loading dataset: {dataset_str}")
         dataset: IterableDataset = load_dataset(
             config.dataset.path, 
             config.dataset.name, 
