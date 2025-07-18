@@ -5,6 +5,8 @@ and stores the results in MongoDB for efficient similarity search.
 """
 import logging
 import os
+import signal
+import sys
 from typing import List, Dict, Any, Optional
 from pymongo.collection import Collection
 from pymongo.mongo_client import MongoClient
@@ -38,6 +40,16 @@ class TqdmLoggingHandler(logging.Handler):
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(TqdmLoggingHandler())
+
+# Global variable to signal exit
+exit_requested = False
+
+def handle_signal(signum, frame):
+    """Signal handler to request a graceful exit."""
+    global exit_requested
+    if not exit_requested:
+        logger.info("\nShutdown signal received. Finishing current batch before exiting...")
+        exit_requested = True
 
 # TODOs
 # 1. Address potential memory leak issues
@@ -171,6 +183,10 @@ def process_dataset(
     progress_bar = tqdm(dataset, desc="Processing dataset", unit="docs", total=total_docs)
     
     for doc in progress_bar:
+        if exit_requested:
+            logger.info("Exiting processing loop due to shutdown signal.")
+            break
+
         doc_size = asizeof.asizeof(doc)
         
         # Add to batch
@@ -222,8 +238,9 @@ def process_dataset(
                 logger.info(f"Reached max bytes: {size(stats.bytes_processed)}")
                 break
     
-    # Process any remaining documents in the last batch
-    if batch:
+    # Process any remaining documents in the last batch if we didn't exit early
+    if batch and not exit_requested:
+        logger.info(f"Processing final batch of {len(batch)} documents...")
         raw_count, embedded_count = process_batch(
             batch,
             raw_collection,
@@ -249,6 +266,10 @@ def main() -> None:
         config = AppConfig.from_env()
         logger.info(f"Starting processing with config: {config}")
         
+        # Setup signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, handle_signal)
+        signal.signal(signal.SIGTERM, handle_signal)
+
         # Setup MongoDB
         mongo_client = create_mongo_client(config.mongo.uri)
         db = mongo_client.get_database(config.mongo.db_name)
